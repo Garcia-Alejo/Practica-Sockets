@@ -1,0 +1,135 @@
+chat entre jugadores :
+### server.py
+import socket
+import threading
+
+# Dirección y puerto del servidor
+HOST = "localhost"  # Dirección IP del servidor
+PORT = 5050          # Puerto del servidor
+
+# Crear socket para el servidor
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# Asociar el socket a la dirección y puerto especificados
+server.bind((HOST, PORT))
+
+# Diccionario para almacenar clientes conectados con sus nombres
+clientes = {}
+
+
+def manejar_cliente(conexion, direccion):
+    """
+    Maneja la comunicación con un cliente específico.
+    Recibe mensajes del cliente y los retransmite a los demás.
+
+    Args:
+        conexion (socket): Conexión del cliente.
+        direccion (tuple): Dirección IP y puerto del cliente.
+    """
+    global clientes
+
+    # Recibir el nombre del cliente
+    nombre_cliente = conexion.recv(1024).decode()
+    # Almacenar el cliente en el diccionario
+    clientes[conexion] = nombre_cliente
+    print(f"El cliente {nombre_cliente} se ha conectado desde {direccion}.")
+
+    # Enviar mensaje de bienvenida al cliente
+    conexion.sendall("Te has conectado al chat. Escribe para comunicarte.".encode())
+
+    # Bucle para recibir mensajes del cliente
+    while True:
+        try:
+            mensaje = conexion.recv(1024).decode()
+            if not mensaje:
+                break  # El cliente se desconectó
+            if mensaje.lower() == "q":
+                print(f"{nombre_cliente} se ha desconectado.")
+                break
+
+            # Formatear el mensaje para retransmitir
+            mensaje_formateado = f"{nombre_cliente}: {mensaje}"
+
+            # Enviar el mensaje a los demás clientes
+            for cliente in clientes:
+                if cliente != conexion:  # Evitar reenviar al remitente
+                    cliente.sendall(mensaje_formateado.encode())
+        except:
+            break
+
+    # Eliminar al cliente desconectado
+    conexion.close()
+    del clientes[conexion]
+
+
+def arrancar_servidor():
+    """
+    Inicia el servidor y acepta nuevas conexiones de clientes.
+    """
+    server.listen()  # El servidor comienza a escuchar conexiones
+    print(f"Servidor escuchando en {HOST}:{PORT}...")
+
+    while True:
+        # Aceptar una conexión entrante
+        conexion, direccion = server.accept()
+        print(f"Nueva conexión desde {direccion}.")
+
+        # Crear un nuevo hilo para manejar al cliente
+        hilo = threading.Thread(target=manejar_cliente, args=(conexion, direccion))
+        hilo.start()
+
+
+# Iniciar el servidor
+arrancar_servidor()
+
+
+### cliente.py
+import socket
+import threading
+
+# Dirección y puerto del servidor
+HOST = "localhost"  # Dirección del servidor
+PORT = 5050          # Puerto del servidor
+
+# Crear socket para el cliente
+cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# Conectar al servidor
+cliente.connect((HOST, PORT))
+
+# Solicitar al usuario su nombre y enviarlo al servidor
+nombre = input("Ingresa tu nombre: ")
+cliente.sendall(nombre.encode())
+
+
+def recibir_mensajes():
+    """
+    Recibe mensajes enviados por el servidor y los muestra en pantalla.
+    """
+    while True:
+        try:
+            mensaje = cliente.recv(1024).decode()
+            if mensaje:
+                print(mensaje)
+            else:
+                break  # Si el servidor cierra la conexión
+        except:
+            print("Conexión cerrada.")
+            break
+
+
+# Crear un hilo para recibir mensajes de forma asíncrona
+hilo_recibir = threading.Thread(target=recibir_mensajes, daemon=True)
+hilo_recibir.start()
+
+# Bucle principal para enviar mensajes al servidor
+while True:
+    mensaje = input("Tú: ")
+    if mensaje.lower() == "q":  # Salir del chat
+        cliente.sendall("q".encode())
+        break
+    cliente.sendall(mensaje.encode())
+
+# Cerrar la conexión al finalizar
+cliente.close()
+
+
+Explicacion:

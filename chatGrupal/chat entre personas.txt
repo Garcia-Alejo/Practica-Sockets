@@ -1,0 +1,133 @@
+chat entre clientes :
+
+# Importación de módulos necesarios
+import socket  # Módulo para manejar las conexiones de red.
+import threading  # Módulo para manejar múltiples hilos, permitiendo la ejecución simultánea de tareas.
+
+# Configuración del servidor
+port = 12345  # Puerto donde el servidor escuchará las conexiones entrantes.
+host = "localhost"  # Dirección del servidor (localhost significa que el servidor está en la misma máquina).
+
+# Creación del socket del servidor para comunicación TCP/IP.
+serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # AF_INET es para IPv4, SOCK_STREAM es para TCP.
+serverSocket.bind((host, port))  # Asocia el socket al host y puerto definidos.
+serverSocket.listen(5)  # El servidor puede esperar hasta 5 conexiones entrantes en cola antes de aceptar más.
+print("El servidor escuchando conexiones...")  # Mensaje que indica que el servidor está listo para recibir conexiones.
+
+clientes = []  # Lista para almacenar las conexiones de los clientes.
+
+# Función que maneja la interacción con cada cliente conectado.
+def manejadorCliente(conn, addr):
+    nombreUser = conn.recv(1024).decode()  # Recibe el nombre de usuario del cliente (hasta 1024 bytes).
+    print(f"El cliente {nombreUser} se ha conectado")  # Imprime en consola que un cliente se ha conectado.
+    conn.send("Bienvenido al chat, pulsa q para salir. ".encode())  # Envía un mensaje de bienvenida al cliente.
+
+    # Bucle principal para recibir y procesar los mensajes del cliente.
+    while True:
+        try:
+            msj = conn.recv(1024).decode()  # Recibe el mensaje enviado por el cliente.
+            if msj.lower() == "q":  # Si el cliente envía "q", significa que quiere desconectarse.
+                print(f"El Cliente {nombreUser} se desconecto")  # Mensaje en consola indicando que el cliente se desconectó.
+                clientes.remove(conn)  # Elimina la conexión del cliente de la lista.
+                conn.close()  # Cierra la conexión del cliente.
+                break  # Sale del bucle y termina la función.
+
+            # Si no es "q", difunde el mensaje a todos los demás clientes conectados.
+            difundirMensaje(f"{nombreUser}: {msj}", conn)  
+        except:
+            print("Hubo un error en la conexion")  # Imprime un mensaje si ocurre un error en la comunicación.
+            clientes.remove(conn)  # Elimina la conexión del cliente de la lista.
+            conn.close()  # Cierra la conexión.
+            break  # Sale del bucle en caso de error.
+
+# Función para difundir los mensajes a todos los clientes conectados, excepto al remitente.
+def difundirMensaje(msj, remitente):
+    for cliente in clientes:  # Itera a través de todos los clientes conectados.
+        if cliente != remitente:  # Si el cliente no es el remitente del mensaje.
+            try:
+                cliente.send(msj.encode())  # Envía el mensaje a este cliente.
+            except:
+                clientes.remove(cliente)  # Si hay un error al enviar el mensaje, elimina al cliente de la lista.
+                cliente.close()  # Cierra la conexión del cliente.
+
+# Función principal que acepta las conexiones de los clientes.
+def aceptarConexiones():
+    while True:
+        conn, addr = serverSocket.accept()  # Acepta una conexión entrante de un cliente.
+        clientes.append(conn)  # Añade la nueva conexión a la lista de clientes.
+        hilo = threading.Thread(target=manejadorCliente, args=(conn, addr))  # Crea un hilo para manejar la interacción con el cliente.
+        hilo.start()  # Inicia el hilo.
+
+# Llama a la función para empezar a aceptar conexiones de los clientes.
+aceptarConexiones()
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Explicación del código del servidor:
+Configuración y Creación de Socket: El servidor se configura para escuchar en un puerto específico y en localhost. Usamos SOCK_STREAM para una conexión TCP/IP.
+Manejo de Conexiones de Clientes: Cuando un cliente se conecta, se crea un hilo para manejar su comunicación de manera independiente. Esto permite que múltiples clientes se conecten y interactúen simultáneamente.
+Difusión de Mensajes: Cuando un cliente envía un mensaje, el servidor lo difunde a todos los demás clientes conectados, asegurándose de no enviarlo de vuelta al mismo cliente que lo envió.
+Manejo de Desconexiones y Errores: Si un cliente envía el mensaje "q", el servidor elimina la conexión del cliente y la cierra. También maneja los errores de conexión de forma robusta.
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+cliente.py
+python
+Copiar código
+# Importación de módulos necesarios
+import socket  # Para crear y gestionar la conexión de red.
+import threading  # Para gestionar la recepción de mensajes en paralelo sin bloquear la interfaz de usuario.
+
+# Configuración de la conexión con el servidor
+host = "localhost"  # Dirección del servidor al que el cliente se conectará (localhost en este caso).
+port = 12345  # Puerto en el que el servidor está escuchando las conexiones.
+
+# Creación del socket para la conexión TCP.
+clienteSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # AF_INET para IPv4, SOCK_STREAM para TCP.
+
+# El cliente se conecta al servidor en la dirección y puerto especificados.
+clienteSocket.connect((host, port))  
+print(f"Cliente {nombreUser} conectado ")  # Imprime un mensaje indicando que el cliente se ha conectado exitosamente.
+
+# Solicitar el nombre de usuario al cliente
+nombreUser = input("Ingrese su nombre de usuario: ")  # El cliente ingresa su nombre de usuario.
+clienteSocket.send(nombreUser.encode())  # El cliente envía su nombre al servidor para identificarse.
+
+# Función para recibir mensajes del servidor sin bloquear la entrada del usuario.
+def recibirMensaje():
+    while True:
+        try:
+            msj = clienteSocket.recv(1024).decode()  # Recibe los mensajes del servidor (hasta 1024 bytes).
+            if msj:
+                print(msj)  # Muestra el mensaje recibido del servidor en consola.
+
+        except:
+            print("Conexión cerrada")  # Si la conexión se cierra o ocurre un error, imprime un mensaje.
+            clienteSocket.close()  # Cierra la conexión del cliente.
+            break  # Sale del bucle y termina la función.
+
+# Se inicia un hilo para recibir mensajes sin bloquear el hilo principal.
+threading.Thread(target=recibirMensaje, daemon=True).start()  # El hilo se ejecuta en segundo plano y termina cuando el cliente se desconecta.
+
+# Bucle principal donde el cliente envía mensajes al servidor.
+print(f"{nombreUser}")  # Muestra el nombre de usuario del cliente.
+while True:
+    msj = input(f"[{nombreUser}]: ")  # Solicita al usuario que ingrese un mensaje.
+    if msj.lower() == "q":  # Si el mensaje es "q", el cliente quiere desconectarse.
+        clienteSocket.send(msj.encode())  # Envia "q" al servidor para indicar la desconexión.
+        print(f"El cliente {nombreUser} se desconectó")  # Muestra un mensaje indicando que el cliente se desconectó.
+        clienteSocket.close()  # Cierra la conexión con el servidor.
+        break  # Sale del bucle y termina el programa.
+
+    # Si no es "q", envía el mensaje al servidor.
+    clienteSocket.send(msj.encode())
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+Explicación del código del cliente:
+Configuración de Conexión: El cliente se conecta al servidor especificado en localhost y puerto 12345.
+Interfaz de Usuario: El cliente ingresa su nombre de usuario y lo envía al servidor para ser identificado.
+Recepción de Mensajes: Se crea un hilo que constantemente recibe mensajes del servidor sin bloquear la entrada del usuario, permitiendo la interacción en tiempo real.
+Envio de Mensajes: El cliente puede enviar mensajes al servidor que serán recibidos por otros clientes. Si el mensaje es "q", el cliente se desconecta.
+Desconexión: Si el cliente decide desconectarse, se envía el mensaje "q", y la conexión se cierra de forma ordenada.
+
+
+Resumen General:
+Servidor: El servidor maneja múltiples clientes a través de hilos, recibiendo mensajes de ellos y difundiéndolos a los demás clientes. Permite a los clientes interactuar entre sí en un chat.
+Cliente: El cliente se conecta al servidor, envía mensajes y recibe los mensajes de otros clientes en tiempo real. La comunicación es bidireccional y continua hasta que el cliente decide desconectarse.

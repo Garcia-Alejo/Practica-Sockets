@@ -1,0 +1,110 @@
+adivinar numero:
+# Importación de módulos necesarios
+import socket  # Para crear y gestionar conexiones de red
+import threading  # Para gestionar múltiples conexiones simultáneas con hilos
+
+# Definición de la dirección y el puerto del servidor
+HOST = "localhost"  # El servidor escuchará en la dirección local (localhost)
+PORT = 5050  # El puerto en el que el servidor escuchará las conexiones
+
+# Creación del socket del servidor
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # AF_INET indica IPv4, SOCK_STREAM indica TCP
+server.bind((HOST, PORT))  # El servidor se asocia a la dirección y puerto especificados
+print(f"Servidor escuchando en {HOST}:{PORT}")  # Mensaje en consola indicando que el servidor está escuchando
+
+# Lista para almacenar las conexiones de los jugadores
+jugadores = []  
+# Lista para almacenar los números elegidos por los jugadores
+numeros_a_adivinar = [None, None]  # Para los dos jugadores, inicialmente no hay números elegidos
+
+# Función para manejar a cada jugador en el juego
+def manejar_jugador(conexion, id_jugador):
+    global jugadores, numeros_a_adivinar  # Acceder a las variables globales
+
+    # Recibir el número que el jugador elige para que su oponente lo adivine
+    numero_a_adivinar = int(conexion.recv(1024).decode())  # Recibe el número como bytes y lo decodifica a entero
+    print(f"Jugador {id_jugador + 1} eligió el número {numero_a_adivinar}")  # Mensaje en consola
+    numeros_a_adivinar[id_jugador] = numero_a_adivinar  # Almacena el número elegido por el jugador
+
+    # Esperar hasta que ambos jugadores hayan elegido un número
+    while None in numeros_a_adivinar:
+        pass  # Bucle de espera, el servidor no hace nada hasta que ambos números estén definidos
+
+    # Enviar mensaje de inicio al jugador
+    conexion.sendall("¡Comienza el juego!".encode())  # Envía un mensaje de inicio al jugador
+
+    # El número que este jugador debe adivinar es el número del oponente
+    numero_del_oponente = numeros_a_adivinar[1 - id_jugador]  # El número del oponente está en la posición opuesta
+
+    # Bucle principal del juego para recibir adivinanzas del jugador
+    while True:
+        adivinanza = int(conexion.recv(1024).decode())  # Recibe la adivinanza del jugador
+
+        # Verificar si el jugador adivinó correctamente
+        if adivinanza == numero_del_oponente:
+            conexion.sendall("ganaste".encode())  # Enviar mensaje de victoria al jugador
+            print(f"Jugador {id_jugador + 1} adivinó correctamente.")  # Mensaje en consola
+            break  # Termina el bucle si el jugador adivinó correctamente
+        # Si la adivinanza es mayor que el número del oponente
+        elif adivinanza > numero_del_oponente:
+            conexion.sendall("El número es menor. Intenta de nuevo.".encode())  # Pide una nueva adivinanza
+        # Si la adivinanza es menor que el número del oponente
+        else:
+            conexion.sendall("El número es mayor. Intenta de nuevo.".encode())  # Pide una nueva adivinanza
+
+    conexion.close()  # Cierra la conexión con el jugador
+
+# Función para controlar las conexiones de los jugadores
+def controlar_juego():
+    global jugadores  # Acceder a la lista global de jugadores
+    server.listen(2)  # El servidor puede aceptar hasta dos conexiones
+    print("Esperando jugadores...")  # Mensaje en consola esperando a que se conecten los jugadores
+
+    # Esperar hasta que se conecten dos jugadores
+    while len(jugadores) < 2:
+        conexion, direccion = server.accept()  # Acepta una conexión entrante
+        print(f"Jugador conectado desde {direccion}")  # Imprime la dirección de donde se conecta el jugador
+        jugadores.append(conexion)  # Añade la conexión del jugador a la lista
+        id_jugador = len(jugadores) - 1  # Asigna un ID único al jugador (0 o 1)
+        hilo = threading.Thread(target=manejar_jugador, args=(conexion, id_jugador))  # Crea un hilo para manejar al jugador
+        hilo.start()  # Inicia el hilo
+
+# Ejecutar la función que controla el juego
+controlar_juego()
+cliente.py
+python
+Copiar código
+# Importación del módulo socket para gestionar las conexiones
+import socket
+
+# Definición de la dirección y el puerto del servidor al que el cliente se conectará
+HOST = "localhost"  # Dirección del servidor
+PORT = 5050  # Puerto en el que el servidor está escuchando
+
+# Creación del socket del cliente
+cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # AF_INET indica IPv4, SOCK_STREAM indica TCP
+cliente.connect((HOST, PORT))  # El cliente se conecta al servidor en la dirección y puerto especificados
+
+# Solicitar al usuario que elija un número para que su oponente lo adivine
+numero_propio = input("Elige un número para que tu oponente adivine: ")  # Pide un número al jugador
+cliente.sendall(numero_propio.encode())  # Envía el número al servidor, codificado en bytes
+
+# Esperar la señal de inicio del servidor
+mensaje_inicio = cliente.recv(1024).decode()  # Recibe el mensaje de inicio del servidor
+print(mensaje_inicio)  # Muestra el mensaje en consola
+
+# Comienza el juego
+while True:
+    adivinanza = input("¿Cuál crees que es el número de tu oponente?: ")  # Solicita una adivinanza del jugador
+    cliente.sendall(adivinanza.encode())  # Envía la adivinanza al servidor
+    respuesta_servidor = cliente.recv(1024).decode()  # Recibe la respuesta del servidor
+    print(respuesta_servidor)  # Muestra la respuesta en consola
+
+    # Verificar si el jugador ganó
+    if respuesta_servidor == "ganaste":
+        print("¡Felicidades! Has ganado.")  # Mensaje de victoria
+        break  # Termina el juego si el jugador gana
+
+Resumen de las funciones:
+server.py: Configura un servidor que espera conexiones de dos jugadores, recibe números para adivinar, coordina el juego y gestiona las adivinanzas en un bucle de juego utilizando hilos.
+cliente.py: Configura un cliente que se conecta al servidor, elige un número para que el oponente lo adivine y luego envía sus adivinanzas al servidor, mostrando las respuestas del servidor hasta que gane.

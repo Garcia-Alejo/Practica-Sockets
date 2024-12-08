@@ -1,0 +1,78 @@
+chat entre clientes y servidor:
+
+# Importación de módulos necesarios
+import socket  # Para crear y gestionar conexiones de red
+import threading  # Para gestionar múltiples conexiones simultáneas con hilos
+
+# Función que maneja la interacción con cada cliente
+def manejadorCliente(conn, addr):
+    print(f"Cliente Conectado")  # Mensaje en consola indicando que un cliente se ha conectado
+    while True:  # Bucle infinito para manejar la interacción con el cliente
+        try:
+            msj = conn.recv(1024).decode()  # Recibe el mensaje del cliente (hasta 1024 bytes), lo decodifica a string
+            if not msj or msj.lower() == "q":  # Si el cliente envía un mensaje vacío o "q" (desconexión)
+                print(f"El Cliente {addr} se desconectó")  # Imprime en consola que el cliente se desconectó
+                break  # Rompe el bucle y termina la interacción con el cliente
+
+            # Si el mensaje no es vacío ni "q", se muestra en consola
+            print(f"{addr} Mensaje: {msj}")  # Muestra el mensaje recibido junto con la dirección del cliente
+            conn.send("Mensaje Recibido".encode())  # Envía una confirmación al cliente de que se recibió el mensaje
+
+        except Exception as errorEnConexion:  # Captura cualquier excepción que ocurra durante la comunicación
+            print(f"Existió un error en la conexión del cliente {addr}")  # Mensaje de error en caso de fallo
+            break  # Rompe el bucle si ocurre un error de conexión
+
+    conn.close()  # Cierra la conexión con el cliente una vez que se termina la interacción
+
+# Configuración del servidor
+host = "localhost"  # Dirección local donde el servidor escuchará las conexiones
+port = 12345  # Puerto en el que el servidor escuchará las conexiones
+
+# Creación del socket del servidor
+serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # AF_INET para IPv4, SOCK_STREAM para TCP
+
+serverSocket.bind((host, port))  # Asocia el socket al host y puerto especificados
+serverSocket.listen(5)  # El servidor puede aceptar hasta 5 conexiones en espera
+print("server esperando conexiones...")  # Mensaje en consola esperando que los clientes se conecten
+
+# Bucle principal para aceptar conexiones de clientes
+while True:
+    conn, addr = serverSocket.accept()  # Acepta una nueva conexión del cliente
+    # Inicia un hilo para manejar la comunicación con el cliente, pasando la conexión y la dirección
+    threading.Thread(target=manejadorCliente, args=(conn, addr)).start()
+cliente.py
+python
+Copiar código
+# Importación del módulo socket para gestionar las conexiones
+import socket
+
+# Configuración del servidor al que el cliente se conectará
+host = "localhost"  # Dirección del servidor
+port = 12345  # Puerto en el que el servidor está escuchando
+
+# Creación del socket del cliente
+clieteSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # AF_INET para IPv4, SOCK_STREAM para TCP
+
+clieteSocket.connect((host, port))  # El cliente se conecta al servidor en la dirección y puerto especificados
+print("Cliente conectado!!")  # Mensaje en consola indicando que el cliente se conectó exitosamente
+
+# Bucle principal para enviar mensajes al servidor y recibir respuestas
+while True:
+    msj = input("Cliente: ")  # Solicita al usuario ingresar un mensaje
+    clieteSocket.send(msj.encode())  # Envía el mensaje al servidor, codificado en bytes
+
+    if msj.lower() == "q":  # Si el mensaje es "q", el cliente se desconectará
+        print("El Cliente se desconecta")  # Mensaje indicando que el cliente se desconecta
+        break  # Rompe el bucle y termina el programa
+
+    rta = clieteSocket.recv(1024).decode()  # Recibe la respuesta del servidor (hasta 1024 bytes)
+    if rta.lower() == "1":  # Si el servidor envía "1", indica que cerró la conexión
+        print("El server cerró la conexión")  # Mensaje de cierre de conexión
+        break  # Rompe el bucle y termina el programa
+
+    print(f"servidor: {rta}")  # Muestra la respuesta del servidor en consola
+
+clieteSocket.close()  # Cierra la conexión del cliente una vez que se termina la interacción
+Resumen de las funciones:
+server.py: El servidor configura un socket y escucha las conexiones entrantes de los clientes. Para cada cliente que se conecta, se crea un hilo que maneja la comunicación, permitiendo que varios clientes interactúen con el servidor simultáneamente. El servidor recibe los mensajes de los clientes, muestra en consola los mensajes recibidos y envía una confirmación de recepción.
+cliente.py: El cliente configura un socket, se conecta al servidor y permite que el usuario ingrese mensajes. Envía los mensajes al servidor y muestra las respuestas del servidor. Si el usuario ingresa "q", el cliente se desconecta. También maneja la posibilidad de que el servidor cierre la conexión enviando "1".

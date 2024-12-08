@@ -1,0 +1,123 @@
+adivinar numero random dado por el server:
+
+# Importación de módulos necesarios
+import socket  # Para manejar las conexiones de red.
+import threading  # Para manejar múltiples hilos y permitir la ejecución concurrente.
+import random  # Para generar números aleatorios.
+
+# Configuración de la dirección y puerto en los que el servidor escuchará conexiones
+port = 12345  # El puerto en el que el servidor escuchará conexiones.
+host = "localhost"  # Dirección del servidor (localhost significa que está en la misma máquina).
+
+# Crear el socket del servidor para comunicación TCP/IP.
+serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # AF_INET para IPv4, SOCK_STREAM para TCP.
+serverSocket.bind((host, port))  # Asocia el socket al host y puerto definidos.
+serverSocket.listen(2)  # El servidor escuchará hasta 2 conexiones entrantes.
+
+print("El servidor está escuchando conexiones...")  # Indica que el servidor está esperando conexiones de clientes.
+
+# Lista para almacenar las conexiones de los clientes.
+clientes = []
+
+# Número aleatorio generado por el servidor entre 1 y 30.
+numeroRandom = random.randint(1, 30)  
+print(f"El número aleatorio generado por el servidor es: {numeroRandom}")  # Imprime el número generado por el servidor (esto se muestra solo para fines de depuración).
+
+# Función que maneja la comunicación con cada cliente conectado.
+def manejadorCliente(conn, cliente_id):
+    global numeroRandom  # Usamos el número aleatorio generado por el servidor.
+
+    while True:  # Bucle principal que mantiene la interacción con el cliente.
+        try:
+            num = int(conn.recv(1024).decode())  # Recibe el número enviado por el cliente y lo convierte a entero.
+            print(f"El número del cliente {cliente_id} es: {num}")  # Imprime el número recibido del cliente en consola.
+
+            # Compara el número enviado por el cliente con el número aleatorio generado por el servidor.
+            if num > numeroRandom:
+                mensaje = "El número que enviaste es mayor que el número del servidor"
+            elif num < numeroRandom:
+                mensaje = "El número que enviaste es menor que el número del servidor"
+            else:
+                mensaje = "¡Adivinaste el número! Felicidades."
+                conn.send(mensaje.encode())  # Envia un mensaje de felicitación al cliente.
+                break  # Si el cliente adivinó el número, termina el juego.
+
+            conn.send(mensaje.encode())  # Envia al cliente si su número es mayor, menor o correcto.
+
+            # El cliente puede optar por continuar jugando o desconectarse.
+            opc = conn.recv(1024).decode()  # Recibe la opción del cliente (si desea seguir jugando o no).
+            if opc.lower() == "q":  # Si el cliente envía "q", se desconectará.
+                print(f"El cliente {cliente_id} se ha desconectado")  # Imprime que el cliente se ha desconectado.
+                break  # Sale del bucle y termina la función.
+
+        except:
+            print(f"Error con el cliente {cliente_id}. Cerrando conexión.")  # Si ocurre un error, imprime un mensaje y cierra la conexión.
+            break
+
+    conn.close()  # Cierra la conexión del cliente.
+    print(f"Conexión cerrada con el cliente {cliente_id}")  # Imprime un mensaje indicando que la conexión con el cliente ha sido cerrada.
+
+# Aceptar conexiones de dos clientes.
+for i in range(2):  # El servidor solo aceptará 2 clientes.
+    conn, addr = serverSocket.accept()  # Acepta la conexión entrante de un cliente.
+    print(f"Cliente {i+1} conectado desde: {addr}")  # Imprime la dirección de conexión del cliente.
+    clientes.append(conn)  # Añade la conexión del cliente a la lista de clientes conectados.
+    threading.Thread(target=manejadorCliente, args=(conn, i+1)).start()  # Inicia un hilo para manejar la comunicación con el cliente, pasando la conexión y el ID del cliente como argumentos.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+Explicación del código del servidor:
+Configuración de Socket: El servidor está configurado para escuchar en localhost y puerto 12345. Se usa el protocolo TCP/IP.
+Generación de Número Aleatorio: El servidor genera un número aleatorio entre 1 y 30 que los clientes deben adivinar.
+Manejo de Conexiones de Clientes: El servidor acepta conexiones de 2 clientes. Cada cliente tiene un hilo separado para manejar su interacción con el servidor sin bloquear la ejecución de otros clientes.
+Comparación de Números: El servidor compara los números enviados por los clientes con el número aleatorio. Si el número es correcto, el servidor envía un mensaje de felicitación.
+Desconexión de Clientes: Si el cliente envía "q", el servidor cierra la conexión con ese cliente.
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+cliente.py
+python
+Copiar código
+# Importación de módulos necesarios
+import socket  # Para manejar las conexiones de red.
+
+# Configuración del cliente (dirección y puerto del servidor)
+port = 12345  # Puerto en el que el servidor está escuchando.
+host = "localhost"  # Dirección del servidor (localhost significa que está en la misma máquina).
+
+# Creación del socket del cliente para la comunicación TCP/IP.
+clienteSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # AF_INET para IPv4, SOCK_STREAM para TCP.
+
+# El cliente se conecta al servidor en el host y puerto especificados.
+clienteSocket.connect((host, port))  
+print("Conectado al servidor")  # Imprime un mensaje indicando que el cliente se ha conectado exitosamente al servidor.
+
+# Bucle principal donde el cliente juega a adivinar el número.
+while True:
+    # El cliente ingresa un número para adivinar (debe estar entre 1 y 30).
+    numero = int(input("Ingresa tu número para adivinar (1 al 30): "))
+    clienteSocket.send(str(numero).encode())  # El cliente envía el número al servidor.
+
+    # Recibe la respuesta del servidor, que le indica si su número es mayor, menor o correcto.
+    respuesta = clienteSocket.recv(1024).decode()  
+    print("Servidor:", respuesta)  # Imprime la respuesta recibida del servidor.
+
+    # Si el cliente adivina el número correctamente, termina el juego.
+    if "¡Adivinaste el número!" in respuesta:
+        break
+
+    # Pregunta al cliente si quiere seguir jugando.
+    continuar = input("¿Quieres seguir jugando? (q para salir): ")  
+    clienteSocket.send(continuar.encode())  # El cliente envía su respuesta al servidor.
+
+    # Si el cliente decide desconectarse, se cierra la conexión.
+    if continuar.lower() == "q":
+        break
+
+# Cierra la conexión con el servidor una vez que el juego ha terminado.
+clienteSocket.close()
+print("Desconectado del servidor")  # Imprime un mensaje indicando que el cliente se ha desconectado.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+Explicación del código del cliente:
+Configuración de la Conexión: El cliente se conecta al servidor especificado en localhost y puerto 12345.
+Juego de Adivinar el Número: El cliente ingresa un número para adivinar el número aleatorio del servidor. El cliente puede seguir adivinando o desconectarse.
+Envío de Números y Recepción de Respuestas: El cliente envía su número al servidor y recibe una respuesta que le indica si el número enviado es mayor, menor o correcto.
+Continuación del Juego: Si el número no es correcto, el cliente puede elegir si desea seguir jugando o salir. Si el cliente decide salir (enviando "q"), la conexión se cierra.

@@ -1,0 +1,82 @@
+chat entre un cliente y servidor 
+# Importación del módulo socket para gestionar las conexiones
+import socket  
+
+# Definición de la dirección y el puerto del servidor
+host = "localhost"  # El servidor escuchará en la dirección local (localhost)
+port = 12345  # El puerto en el que el servidor escuchará las conexiones
+
+# Creación del socket del servidor
+serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # AF_INET para IPv4, SOCK_STREAM para TCP
+
+# El servidor se asocia a la dirección y puerto especificados
+serverSocket.bind((host, port))  
+serverSocket.listen(1)  # El servidor escuchará solo una conexión en espera (máximo 1 cliente a la vez)
+print("server esperando conexiones...")  # Mensaje en consola indicando que el servidor está esperando conexiones
+
+# El servidor acepta una conexión entrante
+conn, addr = serverSocket.accept()  # Acepta la primera conexión entrante y devuelve el objeto de conexión y la dirección
+print(f"Conexion establecida {addr}")  # Imprime en consola la dirección del cliente conectado
+
+# Bucle principal para recibir mensajes del cliente y enviar respuestas
+while True:
+    msj = conn.recv(1024).decode()  # Recibe el mensaje del cliente (hasta 1024 bytes) y lo decodifica a string
+
+    # Si el cliente envía "q", se desconecta
+    if msj.lower() == "q":  
+        print("el Cliente se desconecto")  # Mensaje indicando que el cliente se desconectó
+        break  # Sale del bucle y termina la interacción con el cliente
+
+    print(f"Mensaje: {msj}")  # Imprime el mensaje recibido del cliente en consola
+
+    # El servidor pide al usuario que ingrese una respuesta
+    rta = input("Servidor: ")  # Solicita al servidor un mensaje para responder al cliente
+    conn.send(rta.encode())  # Envía la respuesta del servidor al cliente, codificada en bytes
+
+    # Si el servidor envía "1", cierra la conexión
+    if rta.lower() == "1":  
+        print("el servidor cerro la conexion")  # Mensaje indicando que el servidor cerró la conexión
+        break  # Sale del bucle y termina el programa
+
+# Cierra la conexión con el cliente y el socket del servidor
+conn.close()  
+serverSocket.close()  # Cierra el socket del servidor después de finalizar
+cliente.py
+python
+Copiar código
+# Importación del módulo socket para gestionar las conexiones
+import socket
+
+# Definición de la dirección y el puerto del servidor al que el cliente se conectará
+host = "localhost"  # Dirección del servidor
+port = 12345  # Puerto en el que el servidor está escuchando
+
+# Creación del socket del cliente
+clieteSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # AF_INET para IPv4, SOCK_STREAM para TCP
+
+# El cliente se conecta al servidor en la dirección y puerto especificados
+clieteSocket.connect((host, port))  
+print("Cliente conectado!!")  # Mensaje indicando que el cliente se ha conectado exitosamente al servidor
+
+# Bucle principal para enviar mensajes al servidor y recibir respuestas
+while True:
+    msj = input("Cliente: ")  # Solicita al usuario que ingrese un mensaje
+    clieteSocket.send(msj.encode())  # Envía el mensaje al servidor, codificado en bytes
+
+    # Si el mensaje es "q", el cliente se desconecta
+    if msj.lower() == "q":  
+        print("El Cliente se desconecta")  # Mensaje indicando que el cliente se desconectó
+        break  # Sale del bucle y termina el programa
+
+    rta = clieteSocket.recv(1024).decode()  # Recibe la respuesta del servidor (hasta 1024 bytes) y la decodifica
+    if rta.lower() == "1":  # Si el servidor envía "1", indica que cerró la conexión
+        print("El server cerró la conexión")  # Mensaje indicando que el servidor cerró la conexión
+        break  # Sale del bucle y termina el programa
+
+    print(f"servidor: {rta}")  # Muestra la respuesta del servidor en consola
+
+# Cierra la conexión del cliente una vez que se termina la interacción
+clieteSocket.close()  
+Resumen de las funciones:
+server.py: Este script configura un servidor que escucha conexiones en un puerto específico. Cuando un cliente se conecta, el servidor acepta la conexión y espera mensajes del cliente. Para cada mensaje recibido, el servidor responde y si el mensaje es "q" o "1", cierra la conexión con el cliente.
+cliente.py: Este script configura un cliente que se conecta al servidor. El cliente envía mensajes al servidor y espera respuestas. Si el cliente envía "q", se desconecta. Si recibe "1" del servidor, también termina la conexión.

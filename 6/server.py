@@ -1,36 +1,67 @@
 import socket
 import threading
 
+# Configuración del servidor
 host = "localhost"
 port = 12345
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_socket.bind((host, port))
+server_socket.listen(2)
+print("Servidor escuchando conexiones...")
 
-serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-serverSocket.bind((host, port))
-serverSocket.listen(2)
-print("El servidor está escuchando conexiones...")
+# Opciones disponibles
+opciones = ["Rojo", "Azul", "Verde", "Amarillo"]
+print(f"Opciones disponibles: {opciones}")
 
-listaOpciones = ["1- Dibu", "2- Van Dijk", "3- Modric", "4- Martínez", "5- Messi"]
+# Lista para almacenar las conexiones y las elecciones
+clientes = []
+elecciones = [None, None]  # Guardar las elecciones de los dos clientes
 
-def manejadorCliente(conn):
+def manejador_cliente(conn, cliente_id):
+    global elecciones
     try:
-        opciones = "\n".join(listaOpciones)
-        conn.send(f"Elija una opción:\n{opciones}\n".encode())
-        opcion = conn.recv(1024).decode().strip()
-        if opcion.isdigit() and 1 <= int(opcion) <= len(listaOpciones):
-            seleccion = listaOpciones[int(opcion) - 1]
-            print(f"El cliente eligió: {seleccion}")
+        # Enviar las opciones al cliente
+        conn.send(f"Opciones disponibles: {', '.join(opciones)}".encode())
+        conn.send(f"Selecciona una opción enviando el índice (0-{len(opciones)-1}): ".encode())
+
+        # Recibir la elección del cliente
+        eleccion = int(conn.recv(1024).decode())
+        if 0 <= eleccion < len(opciones):
+            elecciones[cliente_id] = opciones[eleccion]
+            print(f"Cliente {cliente_id+1} eligió: {opciones[eleccion]}")
+            conn.send(f"Elegiste: {opciones[eleccion]}".encode())
         else:
-            print("El cliente eligió una opción inválida.")
+            conn.send("Índice inválido. Desconexión.".encode())
+            conn.close()
+            return
+
+        # Esperar hasta que ambos clientes hayan elegido
+        while None in elecciones:
+            pass
+
+        # Comparar las elecciones
+        if elecciones[0] == elecciones[1]:
+            mensaje = f"Ambos eligieron la misma opción: {elecciones[0]}"
+        else:
+            mensaje = f"Cliente 1 eligió: {elecciones[0]}, Cliente 2 eligió: {elecciones[1]}"
+        
+        conn.send(mensaje.encode())
+
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error con el cliente {cliente_id+1}: {e}")
     finally:
         conn.close()
+        print(f"Conexión cerrada con el cliente {cliente_id+1}")
 
-def aceptarClientes():
-    while True:
-        conn, _ = serverSocket.accept()
-        print("Conexión establecida.")
-        hilo = threading.Thread(target=manejadorCliente, args=(conn,))
-        hilo.start()
+# Aceptar conexiones de dos clientes
+for i in range(2):
+    conn, addr = server_socket.accept()
+    print(f"Cliente {i+1} conectado desde: {addr}")
+    clientes.append(conn)
+    threading.Thread(target=manejador_cliente, args=(conn, i)).start()
 
-aceptarClientes()
+# Esperar a que todos los hilos terminen
+for conn in clientes:
+    conn.close()
+
+print("Servidor cerrado.")

@@ -1,0 +1,130 @@
+mport socket  # Importa el módulo para crear conexiones de red.
+
+# Configuración de la dirección y puerto en el que escuchará el servidor.
+HOST = "localhost"  # El servidor escuchará en la máquina local (localhost).
+PORT = 5050  # El puerto en el que el servidor estará a la espera de conexiones.
+
+# Crear el socket utilizando IPv4 y TCP.
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind((HOST, PORT))  # Vincula el socket al host y puerto configurados.
+server.listen()  # Escucha conexiones entrantes.
+
+# Acepta una conexión entrante.
+conexion, direccion = server.accept()
+
+# El servidor entra en un bucle infinito para recibir comandos del cliente.
+while True:
+    # Recibe el tipo de modificación (mayúsculas, minúsculas o reversa).
+    modificacion = conexion.recv(1024).decode()
+    print(f"{modificacion}")
+
+    # Recibe el mensaje que se va a modificar.
+    mensajeC = conexion.recv(1024).decode()
+    print(f"{mensajeC}")
+
+    # Compara el tipo de modificación recibido y aplica la correspondiente.
+    if modificacion == "mayus":
+        # Convierte el mensaje a mayúsculas.
+        mM = mensajeC.upper()
+        print(f"{mM}")
+        conexion.sendall(mM.encode())  # Envía el mensaje modificado al cliente.
+
+    if modificacion == "minus":
+        # Convierte el mensaje a minúsculas.
+        mMin = mensajeC.lower()
+        print(f"{mMin}")
+        conexion.sendall(mMin.encode())  # Envía el mensaje modificado al cliente.
+
+    if modificacion == "reverse":
+        # Invierte el mensaje.
+        mR = mensajeC[::-1]
+        print(f"{mR}")
+        conexion.sendall(mR.encode())  # Envía el mensaje modificado al cliente.
+
+    else:
+        # Si no se reconoce el comando, envía un mensaje de error.
+        error_msg = "Comando no reconocido. Intenta nuevamente."
+        print(error_msg)
+        conexion.sendall(error_msg.encode())
+
+    # Si el mensaje recibido es "salir", se rompe el bucle y se cierra la conexión.
+    if mensajeC == "salir":
+        break
+
+# Cierra la conexión con el cliente.
+conexion.close()
+Explicación del servidor:
+Conexión con el cliente:
+
+El servidor crea un socket y se enlaza a localhost en el puerto 5050. Luego, escucha las conexiones entrantes y acepta una cuando un cliente se conecta.
+Recibiendo el comando y mensaje:
+
+En el bucle, el servidor espera recibir dos cosas:
+Un comando que puede ser: mayus, minus o reverse.
+Un mensaje que será modificado según el comando recibido.
+Procesamiento del comando:
+
+Si el comando es "mayus", convierte el mensaje a mayúsculas.
+Si el comando es "minus", convierte el mensaje a minúsculas.
+Si el comando es "reverse", invierte el mensaje.
+Si el comando no es reconocido, el servidor envía un mensaje de error.
+Salir:
+
+Si el mensaje enviado es "salir", el servidor termina el bucle y cierra la conexión con el cliente.
+Cliente (cliente.py)
+python
+Copiar código
+import socket  # Importa el módulo para crear conexiones de red.
+
+# Configuración de la dirección y puerto del servidor al que se conectará el cliente.
+HOST = "localhost"  # Dirección del servidor (localhost significa que está en la misma máquina).
+PORT = 5050  # Puerto al que se conectará el cliente.
+
+# Crear el socket del cliente utilizando IPv4 y TCP.
+cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+cliente.connect((HOST, PORT))  # El cliente se conecta al servidor en la dirección y puerto especificados.
+
+# El cliente entra en un bucle para enviar comandos y mensajes al servidor.
+while True:
+    # Solicita al usuario que ingrese un comando de modificación.
+    comando = input(f"inserta el comando: minus, mayus, reverse: ")
+    cliente.sendall(comando.encode())  # Envía el comando al servidor.
+
+    # Solicita al usuario que ingrese el mensaje que desea modificar.
+    mensaje = input(f"que mensaje desea mandar: ")
+    cliente.sendall(mensaje.encode())  # Envía el mensaje al servidor.
+
+    # Recibe el mensaje modificado del servidor.
+    terminado = cliente.recv(1024).decode()
+    print(f"{terminado}")  # Imprime el mensaje modificado o el mensaje de error.
+
+    # Si el mensaje recibido es "salir", el cliente termina el bucle y se desconecta.
+    if mensaje == "salir":
+        break
+
+# Cierra la conexión con el servidor.
+cliente.close()
+Explicación del cliente:
+Conexión al servidor:
+
+El cliente se conecta al servidor en localhost en el puerto 5050.
+Envío de comando y mensaje:
+
+El cliente solicita al usuario que ingrese un comando para modificar el mensaje (puede ser mayus, minus o reverse).
+Luego, solicita el mensaje que el usuario desea enviar.
+El comando y el mensaje se envían al servidor para su procesamiento.
+Recibir respuesta:
+
+El cliente recibe el mensaje procesado del servidor (ya sea modificado o un mensaje de error).
+Salir:
+
+Si el cliente ingresa "salir" como mensaje, termina el bucle y cierra la conexión con el servidor.
+Flujo de funcionamiento:
+El cliente se conecta al servidor y envía un comando y un mensaje.
+El servidor recibe el comando y el mensaje, luego aplica el comando (mayúsculas, minúsculas, invertir) y envía el resultado al cliente.
+El cliente recibe el resultado y lo imprime. Si el mensaje es "salir", ambos terminan la conexión.
+Comandos posibles:
+mayus: Convierte el mensaje a mayúsculas.
+minus: Convierte el mensaje a minúsculas.
+reverse: Invierte el mensaje.
+Este código permite a un cliente interactuar con un servidor para modificar un mensaje usando tres tipos de operaciones (mayúsculas, minúsculas, inversión) y luego ver el resultado.

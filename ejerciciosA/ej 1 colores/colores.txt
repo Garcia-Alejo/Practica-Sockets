@@ -1,0 +1,113 @@
+# Importación de los módulos necesarios
+import socket  # Para manejar la comunicación de red (conexiones TCP/IP).
+import threading  # Para manejar múltiples conexiones simultáneas (creando hilos).
+
+# Definir el puerto y la dirección del servidor
+PORT = 5050  # El puerto donde el servidor escuchará conexiones.
+HOST = "localhost"  # Dirección del servidor, 'localhost' significa que está en la misma máquina.
+
+# Crear el socket para el servidor utilizando IPv4 (AF_INET) y TCP (SOCK_STREAM).
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind((HOST, PORT))  # Vincula el socket a la dirección y puerto especificados.
+print(f"Servidor escuchando en {HOST}:{PORT}")  # Imprime el mensaje que indica que el servidor está esperando conexiones.
+
+# Lista para almacenar los colores elegidos por los jugadores.
+colores = []
+
+# Función que maneja el juego para cada jugador.
+def juego(conexion, direccion, num_cliente):
+    global colores  # Usamos la variable global 'colores' para acceder y modificar la lista.
+
+    # Solicitar al jugador que envíe su color favorito.
+    conexion.sendall(f"Eres el jugador {num_cliente}. Envía tu color favorito:".encode())  
+    colorFav = conexion.recv(1024).decode()  # El jugador envía su color favorito al servidor.
+    print(f"Jugador {num_cliente} ({direccion}) eligió el color: {colorFav}")  # Muestra el color elegido por el jugador.
+
+    # Agregar el color del jugador a la lista de colores.
+    colores.append(colorFav)
+
+    # Esperar a que ambos jugadores envíen sus colores. El bucle está vacío, pero sirve para bloquear hasta que haya dos jugadores.
+    while len(colores) < 2:
+        pass  # El servidor espera hasta que ambos jugadores hayan elegido su color.
+
+    # Determinar el color del rival. Si el jugador 0 es el primero en conectarse, el jugador 1 es el segundo.
+    color_rival = colores[1 - num_cliente]
+
+    # Instrucción para que el jugador intente adivinar el color del rival.
+    conexion.sendall("Intenta adivinar el color favorito de tu rival.".encode())
+
+    while True:  # Bucle que mantiene el juego hasta que el jugador adivine correctamente.
+        adivinanza = conexion.recv(1024).decode()  # El jugador envía su adivinanza (color).
+        print(f"Jugador {num_cliente} adivinó: {adivinanza}")  # Imprime la adivinanza del jugador.
+
+        # Si la adivinanza es correcta, el jugador gana.
+        if adivinanza in color_rival:
+            print(f"El jugador {num_cliente} adivinó correctamente el color del rival!")
+            conexion.sendall("¡Has adivinado correctamente!".encode())  # Envía un mensaje de victoria al jugador.
+            break  # Salir del bucle y terminar el juego.
+        else:
+            # Si la adivinanza es incorrecta, el jugador debe adivinar de nuevo.
+            conexion.sendall("Adivina de nuevo, no es un color flaqui.".encode())
+
+    conexion.close()  # Cierra la conexión con el jugador después de que el juego termina.
+
+# Función que maneja las conexiones entrantes de los jugadores.
+def manejar_conexiones():
+    server.listen(2)  # El servidor escuchará hasta dos jugadores.
+    print("Esperando conexiones...")  # Indica que el servidor está esperando las conexiones de los jugadores.
+    num_cliente = 0  # Variable para contar el número de jugadores conectados.
+
+    while num_cliente < 2:  # Limitar el número de jugadores a 2.
+        conexion, direccion = server.accept()  # Acepta la conexión de un jugador.
+        print(f"Jugador {num_cliente} conectado desde {direccion}")  # Imprime la dirección de conexión del jugador.
+        
+        # Crear un hilo para manejar el juego de este jugador en paralelo con otros jugadores.
+        hilo = threading.Thread(target=juego, args=(conexion, direccion, num_cliente))
+        hilo.start()  # Inicia el hilo para manejar este jugador.
+
+        num_cliente += 1  # Aumentar el contador de jugadores.
+
+    print("Juego iniciado con dos jugadores.")  # Informa que se han conectado dos jugadores y el juego ha comenzado.
+
+# Llamar a la función para comenzar a manejar las conexiones de los jugadores.
+manejar_conexiones()
+Explicación del servidor:
+Configuración del servidor:
+
+Se establece el puerto (PORT = 5050) y la dirección (HOST = "localhost"), luego el servidor crea un socket para escuchar las conexiones de los jugadores.
+Juego por hilo:
+
+Cada jugador se maneja en un hilo independiente. Así, el servidor puede interactuar con dos jugadores de forma simultánea, permitiendo que cada jugador juegue de manera independiente pero interactúe con el otro jugador.
+Interacción con los jugadores:
+
+Se solicita a cada jugador que ingrese su color favorito. Cuando ambos jugadores envían sus colores, se empieza la fase de adivinanza, donde un jugador trata de adivinar el color del rival.
+El servidor evalúa si la adivinanza es correcta y notifica al jugador.
+Terminación del juego:
+
+El juego termina cuando un jugador adivina correctamente el color del otro jugador, o si ambos jugadores deciden desconectarse.
+
+cliente.py:
+import socket 
+import threading
+
+PORT=5050
+HOST="localhost"
+cliente=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+cliente.connect((HOST, PORT))
+
+color = input("¿cual es tu color favorito? ")
+cliente.sendall(color.encode())
+
+while True: 
+    mensaje = cliente.recv(1024).decode()
+    print(mensaje) 
+
+    if "adivina" in mensaje:
+        respuesta = input("> ")
+        cliente.send(respuesta.encode())
+
+    if "¡Has adivinado correctamente!" in mensaje:
+        print("¡Felicidades, ganaste!")
+        break
+
+cliente.close()

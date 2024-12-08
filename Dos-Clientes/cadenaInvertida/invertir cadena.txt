@@ -1,0 +1,138 @@
+server.py
+python
+Copiar código
+# Importación de módulos necesarios
+import socket  # Para manejar las conexiones de red.
+import threading  # Para manejar múltiples hilos y permitir la ejecución concurrente.
+
+# Configuración del host y puerto donde el servidor escuchará las conexiones.
+host = "localhost"  # Dirección del servidor (localhost significa que está en la misma máquina).
+port = 12345  # Puerto en el que el servidor escuchará las conexiones.
+
+# Crear el socket del servidor para comunicación TCP/IP.
+serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # AF_INET para IPv4, SOCK_STREAM para TCP.
+serverSocket.bind((host, port))  # Asocia el socket al host y puerto definidos.
+serverSocket.listen(2)  # El servidor escuchará hasta 2 conexiones entrantes.
+
+print("El servidor está escuchando conexiones")  # Indica que el servidor está esperando conexiones.
+
+# Variable global para almacenar las palabras concatenadas recibidas de los clientes.
+palabras_concatenadas = ""
+
+# Lock (bloqueo) para asegurar que la concatenación de las palabras se realice de manera segura en entornos multihilo.
+lock = threading.Lock()
+
+
+# Función para invertir una cadena de texto.
+def invertirCadena(cadena):
+    return cadena[::-1]  # La cadena es invertida utilizando el slicing [::-1].
+
+
+# Función que maneja la comunicación con cada cliente.
+def manejadorCliente(conn, addr):
+    global palabras_concatenadas  # Usamos la variable global para almacenar las palabras concatenadas.
+
+    # Recibe el nombre del cliente.
+    nombreUser = conn.recv(1024).decode() 
+    print(f"Cliente conectado: {nombreUser} desde {addr}")  # Imprime la información sobre el cliente conectado.
+
+    while True:  # Bucle principal que mantiene la comunicación con el cliente.
+        palabra = conn.recv(1024).decode()  # Recibe una palabra enviada por el cliente.
+        print(f"La palabra que se recibió del cliente {nombreUser} fue {palabra}")  # Muestra la palabra recibida.
+
+        palabraInvertida = invertirCadena(palabra)  # Invierte la palabra recibida.
+        print(f"La palabra invertida del usuario {nombreUser} es: {palabraInvertida}")  # Muestra la palabra invertida.
+        
+        # Envía la palabra invertida al cliente.
+        conn.send(f"La palabra invertida de {nombreUser} quedó: {palabraInvertida}".encode())
+
+        # Usamos un bloque "lock" para asegurar que la operación de concatenación sea segura en un entorno multihilo.
+        with lock:
+            palabras_concatenadas += palabra + " "  # Concatenamos la palabra a la variable global.
+            print(f"Estado actual de palabras concatenadas: {palabras_concatenadas.strip()}")  # Imprime el estado actual de las palabras concatenadas.
+
+        # Envía las palabras concatenadas al cliente.
+        conn.send(f"Palabras concatenadas hasta ahora: {palabras_concatenadas.strip()}".encode())
+
+        # Pregunta al cliente si desea continuar o desconectarse.
+        opc = conn.recv(1024).decode()  # Recibe la opción del cliente ("q" para salir).
+        if opc.lower() == "q":  # Si el cliente elige "q", se desconectará.
+            print(f"El usuario {nombreUser} se ha desconectado")  # Informa que el cliente se desconectó.
+            break  # Sale del bucle y termina la función.
+
+    conn.close()  # Cierra la conexión con el cliente.
+    print(f"Conexión cerrada con {nombreUser}")  # Informa que la conexión con el cliente fue cerrada.
+
+
+# Función que acepta clientes y les asigna un hilo para manejar su interacción.
+def aceptarClientes():
+    while True:
+        conn, addr = serverSocket.accept()  # Acepta una nueva conexión de cliente.
+        print("Conexión establecida con", addr)  # Informa sobre la nueva conexión.
+        
+        # Crea un nuevo hilo para manejar la interacción con el cliente.
+        hilo = threading.Thread(target=manejadorCliente, args=(conn, addr))  # Inicia un hilo con la función 'manejadorCliente'.
+        hilo.start()  # El hilo comienza a ejecutarse.
+
+# Llamamos a la función que acepta clientes para que el servidor empiece a trabajar.
+aceptarClientes()
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+Explicación del servidor:
+Configuración del servidor: El servidor está configurado para escuchar conexiones entrantes en localhost y puerto 12345. Usa TCP para la comunicación.
+Gestión de múltiples clientes: El servidor está diseñado para manejar conexiones de varios clientes al mismo tiempo mediante hilos. Cada vez que un cliente se conecta, se crea un hilo que se encarga de la comunicación con ese cliente.
+Concatenación y bloqueo seguro: Las palabras recibidas de los clientes se concatenan y se almacenan en una variable global. Para garantizar que esto se haga de forma segura en un entorno multihilo, se utiliza un lock (bloqueo).
+Invertir la palabra: El servidor invierte cada palabra recibida antes de enviarla de vuelta al cliente.
+Desconexión: Cuando el cliente envía "q", se desconecta y la conexión se cierra.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+cliente.py
+python
+Copiar código
+# Importación de módulos necesarios
+import socket  # Para manejar las conexiones de red.
+
+# Configuración del cliente (dirección y puerto del servidor)
+port = 12345  # El puerto al que se conecta el cliente.
+host = "localhost"  # Dirección del servidor (localhost significa que está en la misma máquina).
+
+# Crear el socket del cliente para comunicación TCP/IP.
+clienteSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # AF_INET para IPv4, SOCK_STREAM para TCP.
+
+# El cliente se conecta al servidor en el host y puerto especificados.
+clienteSocket.connect((host, port))  
+print("Conexion establecida con el server")  # Imprime un mensaje indicando que el cliente se ha conectado exitosamente.
+
+# El cliente ingresa su nombre de usuario.
+nombreUser = input("Bienvenido, ingrese su nombre: ")  
+clienteSocket.send(nombreUser.encode())  # El cliente envía su nombre al servidor.
+
+while True:  # Bucle principal donde el cliente interactúa con el servidor.
+    # El cliente ingresa una palabra para enviar al servidor.
+    palabra = input(f"Usuario {nombreUser} ingrese su palabra: ")  
+    clienteSocket.send(palabra.encode())  # El cliente envía la palabra al servidor.
+
+    # El servidor responde con la palabra invertida.
+    respuesta = clienteSocket.recv(1024).decode()  
+    print(respuesta)  # Imprime la respuesta del servidor (palabra invertida).
+
+    # El servidor también envía las palabras concatenadas hasta ese momento.
+    palabraConcatenada = clienteSocket.recv(1024).decode()
+    print(palabraConcatenada)  # Imprime las palabras concatenadas hasta ese momento.
+
+    # Pregunta al cliente si desea continuar o desconectarse.
+    opc = input("presione 'q' si se quiere salir: ")  
+    clienteSocket.send(opc.encode())  # El cliente envía su opción al servidor.
+
+    if opc.lower() == "q":  # Si el cliente ingresa "q", termina el juego.
+        print("Te desconectas")  
+        break  # Sale del bucle y termina la conexión.
+
+# Cierra la conexión con el servidor una vez que el cliente decide desconectarse.
+clienteSocket.close()  
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Explicación del cliente:
+Conexión al servidor: El cliente se conecta al servidor en localhost y puerto 12345 utilizando TCP.
+Interacción con el servidor: El cliente ingresa su nombre de usuario y lo envía al servidor. Luego, en un bucle, el cliente ingresa palabras que el servidor invertirá y devolverá.
+Palabras concatenadas: El cliente también recibe las palabras concatenadas enviadas por otros clientes.
+Desconexión: El cliente puede enviar "q" para desconectarse, lo que terminará el programa.

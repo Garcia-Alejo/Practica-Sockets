@@ -13,6 +13,4 @@ while True:
 
 	resultado = clienteSocket.recv(1024).decode()
 	print(resultado)
-	break
-
-clienteSocket.close()
+	

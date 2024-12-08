@@ -1,22 +1,26 @@
 import socket
 
+# Configuración del cliente
 host = "localhost"
 port = 12345
 
-clienteSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-clienteSocket.connect((host, port))
-print ("El cliente se ha conectado")
+cliente_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+cliente_socket.connect((host, port))
+print("Conectado al servidor")
 
 try:
-	bienvenida= clienteSocket.recv(1024).decode()
-	print (bienvenida)
+    # Recibir las opciones
+    opciones = cliente_socket.recv(1024).decode()
+    print(opciones)
 
-	opciones = clienteSocket.recv (1024).decode()
-	print(opciones)
+    # Enviar la elección
+    eleccion = input(cliente_socket.recv(1024).decode())
+    cliente_socket.send(eleccion.encode())
 
-	opcion = input("Seleccione su eleccion de la lista").strip()
-	clienteSocket.send(opcion.encode())
+    # Recibir la respuesta del servidor
+    respuesta = cliente_socket.recv(1024).decode()
+    print("Servidor:", respuesta)
+
 finally:
-	clienteSocket.close()
-	print ("el cliente se desconecto")
-clienteSocket.close()
+    cliente_socket.close()
+    print("Conexión cerrada")
